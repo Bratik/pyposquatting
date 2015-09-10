@@ -3,16 +3,16 @@
 
 """
     * TODO:
-    -tld length min/max?
-    -out file
     -tld file
+    -timeout
+    -handlig of specials chars(implementing regex too)
 
 
 """
 
 # A simple typosquatting detection tool
 
-# Usage: pyposquatting.py [-h] [--tld | --missing-char] domain
+# Usage: usage: pyposquatting.py [-h][--tlds | --missing-chars | --replace-chars | -o OUTPUT] domain
 # Version: 0.1
 # File: pyposquatting.py
 # Author: Benjamin Béguin
@@ -35,15 +35,19 @@ class Resolver(threading.Thread):
     def run(self):
         try:
             myresolver = resolver.Resolver()
-            myresolver.lifetime=60
-            myresolver.timeout=60
+            myresolver.lifetime=10
+            myresolver.timeout=10
             result = str(myresolver.query(self.address)[0])
             self.result_dict[self.address] = result
             if result != "127.0.53.53":
                 print self.address+" : "+result
-        except resolver.NXDOMAIN,resolver.NoAnswer:
+        except resolver.NXDOMAIN:
             pass
-        except resolver.Timeout, resolver.NoNameservers:
+        except resolver.Timeout:
+            pass
+        except resolver.NoNameservers:
+            pass
+        except resolver.NoAnswer:
             pass
 # main function
 def main():
@@ -54,7 +58,8 @@ def main():
     group.add_argument("--tlds", action="store_true", help="check only for tlds")
     group.add_argument("--missing-chars", action="store_true", help="check only for missing chars")
     group.add_argument("--replace-chars", action="store_true", help="check only for char replacement")
-    group.add_argument("-o", "--output", action="store", help="output file")
+    parser.add_argument("-o", "--output", action="store", help="output file")
+    parser.add_argument("-t", "--timeout", action="store", help="set the timeout of dns queries in seconds(default=30)")
     args = parser.parse_args()
 
     domain = args.domain.lower()
@@ -72,7 +77,9 @@ def main():
         domains = checkTld(loadTld(), domain)
         domains += checkMissingChar(domain)
         domains += checkReplaceChar(domain)
-    dnsQuery(domains)
+    matches=dnsQuery(domains)
+    if args.output !="":
+        writeResults(args.output,matches)
 
 # function dedicated to test for different tlds
 def checkTld(tlds, domain):
@@ -143,18 +150,35 @@ def dnsQuery(domains):
         #excluding the ICANN special IP
         if results[domain] != "127.0.53.53" :
             matches[domain]=results[domain]
-    print "Results : "+str(len(matches))
+
     print "Queries : "+str(len(threads))
+    print "Results : "+str(len(matches))
+    return matches
 
 
 # function loading the tlds
 def loadTld():
-    tldFile = open(TLD_FILENAME, "r")
+    try:
+        tldFile = open(TLD_FILENAME, "r")
+    except IOError:
+        print "error openning tld file"
     tlds = []
     for line in tldFile:
         tlds.append(line.rstrip('\n\r'))
     tldFile.close()
     return tlds
+
+# function that write results to a file
+def writeResults(file,results):
+    try:
+        file=open(file,"w")
+        for domain in results.keys():
+            file.write(domain+":"+results[domain]+"\n\r")
+        file.close()
+
+    except IOError:
+        print "error writing file"
+
 
 
 if __name__ == '__main__':

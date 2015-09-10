@@ -3,8 +3,6 @@
 
 """
     * TODO:
-    -query dns?
-    -threader les queries
     -tld length min/max?
     -out file
     -tld file
@@ -12,12 +10,12 @@
 
 """
 
-# A simple typosquatting detecting tool
+# A simple typosquatting detection tool
 
 # Usage: pyposquatting.py [-h] [--tld | --missing-char] domain
 # Version: 0.1
 # File: pyposquatting.py
-#  Author: Benjamin Béguin
+# Author: Benjamin Béguin
 # Contact: benjamin.beguin@imprimerienationale.fr / contact@bratik.fr
 import argparse
 import threading

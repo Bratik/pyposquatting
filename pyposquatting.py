@@ -3,13 +3,15 @@
 
 """
     * TODO:
-    -handling of special chars(implementing regex too)
+    -handling of special chars
+    -input validation
 
 """
 
 # A simple typosquatting detection tool
 
-# usage: pyposquatting.py [-h] [--tlds | --missing-chars | --replace-chars][-o OUTPUT] [-t TIMEOUT] [--tld-file TLD_FILE][--throttle THROTTLE]domain
+# usage: pyposquatting.py [-h] [--tlds | --missing-chars | --replace-chars]
+# [-o OUTPUT] [-t TIMEOUT] [--tld-file TLD_FILE][--throttle THROTTLE]domain
 # Version: 0.2
 # File: pyposquatting.py
 # Author: Benjamin Béguin
@@ -20,23 +22,27 @@ import threading
 from dns import resolver
 import time
 
+
 # Resolver class, designed to thread dns resolving queries
 class Resolver(threading.Thread):
-    def __init__(self, address, result_dict, timeout=30):
+    def __init__(self, address, result_dict, dns, timeout=30):
         threading.Thread.__init__(self)
         self.address = address
         self.result_dict = result_dict
-        self.timeout=timeout
+        self.timeout = timeout
+        self.dns=dns
 
     def run(self):
         try:
             myresolver = resolver.Resolver()
-            myresolver.lifetime=self.timeout
-            myresolver.timeout=self.timeout
+            myresolver.lifetime = self.timeout
+            myresolver.timeout = self.timeout
+            if self.dns != None:
+                myresolver.nameservers=[self.dns]
             result = str(myresolver.query(self.address)[0])
             self.result_dict[self.address] = result
             if result != "127.0.53.53":
-                print self.address+" : "+result
+                print self.address + " : " + result
         except resolver.NXDOMAIN:
             pass
         except resolver.Timeout:
@@ -45,6 +51,8 @@ class Resolver(threading.Thread):
             pass
         except resolver.NoAnswer:
             pass
+
+
 # main function
 def main():
     # command-line parsing
@@ -54,15 +62,16 @@ def main():
     group.add_argument("--tlds", action="store_true", help="check only for tlds")
     group.add_argument("--missing-chars", action="store_true", help="check only for missing chars")
     group.add_argument("--replace-chars", action="store_true", help="check only for char replacement")
-    parser.add_argument("-t", "--timeout", action="store", type=float, help="set the timeout of dns queries in seconds(default=30)")
-    parser.add_argument("--throttle", action="store", default=0.02, type=float, help="Set time between two threads, useful in case of large scans (default=0.02)")
+    parser.add_argument("-t", "--timeout", action="store", type=float,
+                        help="set the timeout of dns queries in seconds(default=30)")
+    parser.add_argument("--throttle", action="store", default=0.02, type=float,
+                        help="Set time between two threads, useful in case of large scans (default=0.02)")
     parser.add_argument("--tld-file", action="store", default="tld.txt", help="Set a custom tld file(default=tld.txt")
+    parser.add_argument("-d","--dns",action="store", help="Specify the DNS server to use for queries(default is system defined)")
     parser.add_argument("-o", "--output", action="store", help="output file")
-
 
     args = parser.parse_args()
     domain = args.domain.lower()
-    domains = []
     # if we only check for tlds
     if args.tlds:
         domains = checkTld(loadTld(args.tld_file), domain)
@@ -76,10 +85,11 @@ def main():
         domains = checkTld(loadTld(args.tld_file), domain)
         domains += checkMissingChar(domain)
         domains += checkReplaceChar(domain)
-    domains=list(set(domains))
-    matches=dnsQuery(domains,args.throttle)
-    if args.output !="":
-        writeResults(args.output,matches)
+    domains = list(set(domains))
+    matches = dnsQuery(domains, args.timeout,args.throttle, args.dns)
+    if args.output != "":
+        writeResults(args.output, matches)
+
 
 # function dedicated to test for different tlds
 def checkTld(tlds, domain):
@@ -110,7 +120,7 @@ def checkReplaceChar(domain):
     tld = domain.split(".")[-1]
     domain = domain.split(".")[-2]
     domains = []
-    #check for letter replacement
+#check for letter replacement
     for i in range(0, len(domain)):
         for j in range(1, 26):
             newchar = ord(domain[i]) + j
@@ -122,7 +132,7 @@ def checkReplaceChar(domain):
                 domains.append(newchar + domain[1:] + "." + tld)
             else:
                 domains.append(domain[0:i] + newchar + domain[i + 1:] + "." + tld)
-    #check for number replacement
+#check for number replacement
     for i in range(0, len(domain)):
         for j in range(0, 10):
             newchar = str(j)
@@ -134,12 +144,12 @@ def checkReplaceChar(domain):
 
 
 # handling of dns queries
-def dnsQuery(domains,throttle=0.02):
+def dnsQuery(domains, timeout=30, throttle=0.02, dns=''):
     threads = []
     results = {}
-    matches={}
+    matches = {}
     for address in domains:
-        resolver_thread = Resolver(address, results)
+        resolver_thread = Resolver(address, results, dns, timeout)
         threads.append(resolver_thread)
         resolver_thread.start()
         time.sleep(throttle)
@@ -149,11 +159,11 @@ def dnsQuery(domains,throttle=0.02):
 
     for domain in results:
         #excluding the ICANN special IP
-        if results[domain] != "127.0.53.53" :
-            matches[domain]=results[domain]
+        if results[domain] != "127.0.53.53":
+            matches[domain] = results[domain]
 
-    print "Queries : "+str(len(threads))
-    print "Results : "+str(len(matches))
+    print "Queries : " + str(len(threads))
+    print "Results : " + str(len(matches))
     return matches
 
 
@@ -168,21 +178,27 @@ def loadTld(tldFilename="tld.txt"):
         print "Type error while opening tld file"
         exit()
     tlds = []
-    for line in tldFile:
-        tlds.append(line.rstrip('\n\r'))
-    tldFile.close()
+    if tldFile:
+        for line in tldFile:
+            tlds.append(line.rstrip('\n\r'))
+    try:
+        tldFile.close()
+    except IOError:
+        print "Error while closing tld file"
     return tlds
 
+
 # function that write results to a file
-def writeResults(file,results):
+def writeResults(file, results):
     try:
-        file=open(file,"w")
+        file = open(file, "w")
         for domain in results.keys():
-            file.write(domain+":"+results[domain]+"\n\r")
+            file.write(domain + ":" + results[domain] + "\n\r")
         file.close()
 
     except IOError:
         print "error writing file"
+
 
 if __name__ == '__main__':
     main()

@@ -39,8 +39,9 @@ class Resolver(threading.Thread):
             myresolver = resolver.Resolver()
             myresolver.lifetime = self.timeout
             myresolver.timeout = self.timeout
-            if self.dns is not None and self.dns != "":
-                myresolver.nameservers=[].append(self.dns)
+            if self.dns is not None:
+                myresolver.nameservers=[]
+                myresolver.nameservers.append(self.dns)
             result = str(myresolver.query(self.address)[0])
             self.result_dict[self.address] = result
             if result != "127.0.53.53":

@@ -10,6 +10,10 @@
 # A simple typosquatting detection tool
 
 # usage: pyposquatting.py [-h] [--tlds | --missing-chars | --replace-chars]
+#                        [-t TIMEOUT] [--throttle THROTTLE]
+#                        [--tld-file TLD_FILE] [-d DNS] [-o OUTPUT]
+#                        domain
+
 # [-o OUTPUT] [-t TIMEOUT] [--tld-file TLD_FILE][--throttle THROTTLE]domain
 # Version: 0.2
 # File: pyposquatting.py

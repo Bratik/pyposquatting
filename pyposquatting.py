@@ -238,7 +238,7 @@ def writeResults(file, results):
 
 # check if domain is valid (e.g looks like foo.bar)
 def checkDomain(domain):
-    expression = re.compile('^[a-z0-9]+\.[a-z]{2,}$')
+    expression = re.compile('^[a-z0-9-]+\.[a-z]{2,}$')
     try:
         if not expression.match(domain):
             raise domainError(domain)

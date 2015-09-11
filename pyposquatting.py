@@ -3,9 +3,8 @@
 
 """
     * TODO:
-    -tld file
     -timeout
-    -handlig of specials chars(implementing regex too)
+    -handling of specials chars(implementing regex too)
 
 
 """
@@ -16,27 +15,25 @@
 # Version: 0.1
 # File: pyposquatting.py
 # Author: Benjamin Béguin
+# Licence: MIT, see LICENSE FILE
 # Contact: benjamin.beguin@imprimerienationale.fr / contact@bratik.fr
 import argparse
 import threading
 from dns import resolver
 
-# vars
-
-TLD_FILENAME = "tld.txt"
-
 # Resolver class, designed to thread dns resolving queries
 class Resolver(threading.Thread):
-    def __init__(self, address, result_dict):
+    def __init__(self, address, result_dict, timeout=30):
         threading.Thread.__init__(self)
         self.address = address
         self.result_dict = result_dict
+        self.timeout=timeout
 
     def run(self):
         try:
             myresolver = resolver.Resolver()
-            myresolver.lifetime=10
-            myresolver.timeout=10
+            myresolver.lifetime=self.timeout
+            myresolver.timeout=self.timeout
             result = str(myresolver.query(self.address)[0])
             self.result_dict[self.address] = result
             if result != "127.0.53.53":
@@ -52,7 +49,7 @@ class Resolver(threading.Thread):
 # main function
 def main():
     # command-line parsing
-    parser = argparse.ArgumentParser(description="A simple typosquatting detecting tool.")
+    parser = argparse.ArgumentParser(description="A simple typosquatting detection tool.")
     group = parser.add_mutually_exclusive_group()
     parser.add_argument("domain", help="domain you want to check, ex: foo.bar")
     group.add_argument("--tlds", action="store_true", help="check only for tlds")
@@ -60,13 +57,13 @@ def main():
     group.add_argument("--replace-chars", action="store_true", help="check only for char replacement")
     parser.add_argument("-o", "--output", action="store", help="output file")
     parser.add_argument("-t", "--timeout", action="store", help="set the timeout of dns queries in seconds(default=30)")
+    parser.add_argument("--tld-file", action="store", help="Set a custom tld file")
     args = parser.parse_args()
-
     domain = args.domain.lower()
     domains = []
     # if we only check for tlds
     if args.tlds:
-        domains = checkTld(loadTld(), domain)
+        domains = checkTld(loadTld(args.tld_file), domain)
     # if we only check for missing chars
     elif args.missing_chars:
         domains = checkMissingChar(domain)
@@ -74,7 +71,7 @@ def main():
         domains = checkReplaceChar(domain)
     # if we check both
     else:
-        domains = checkTld(loadTld(), domain)
+        domains = checkTld(loadTld(args.tld_file), domain)
         domains += checkMissingChar(domain)
         domains += checkReplaceChar(domain)
     matches=dnsQuery(domains)
@@ -157,11 +154,15 @@ def dnsQuery(domains):
 
 
 # function loading the tlds
-def loadTld():
+def loadTld(tldFilename="tld.txt"):
     try:
-        tldFile = open(TLD_FILENAME, "r")
+        tldFile = open(tldFilename, "r")
     except IOError:
         print "error openning tld file"
+        exit()
+    except TypeError:
+        print "Type error while opening tld file"
+        exit()
     tlds = []
     for line in tldFile:
         tlds.append(line.rstrip('\n\r'))

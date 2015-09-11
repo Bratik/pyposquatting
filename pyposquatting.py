@@ -3,7 +3,7 @@
 
 """
     * TODO:
-    -handling of specials chars(implementing regex too)
+    -handling of special chars(implementing regex too)
 
 """
 
@@ -13,7 +13,7 @@
 # Version: 0.2
 # File: pyposquatting.py
 # Author: Benjamin Béguin
-# Licence: MIT, see LICENSE FILE
+# Licence: MIT, see LICENSE file
 # Contact: benjamin.beguin@imprimerienationale.fr / contact@bratik.fr
 import argparse
 import threading
@@ -54,10 +54,12 @@ def main():
     group.add_argument("--tlds", action="store_true", help="check only for tlds")
     group.add_argument("--missing-chars", action="store_true", help="check only for missing chars")
     group.add_argument("--replace-chars", action="store_true", help="check only for char replacement")
-    parser.add_argument("-o", "--output", action="store", help="output file")
     parser.add_argument("-t", "--timeout", action="store", type=float, help="set the timeout of dns queries in seconds(default=30)")
-    parser.add_argument("--tld-file", action="store", default="tld.txt", help="Set a custom tld file(default=tld.txt")
     parser.add_argument("--throttle", action="store", default=0.02, type=float, help="Set time between two threads, useful in case of large scans (default=0.02)")
+    parser.add_argument("--tld-file", action="store", default="tld.txt", help="Set a custom tld file(default=tld.txt")
+    parser.add_argument("-o", "--output", action="store", help="output file")
+
+
     args = parser.parse_args()
     domain = args.domain.lower()
     domains = []
@@ -74,6 +76,7 @@ def main():
         domains = checkTld(loadTld(args.tld_file), domain)
         domains += checkMissingChar(domain)
         domains += checkReplaceChar(domain)
+    domains=list(set(domains))
     matches=dnsQuery(domains,args.throttle)
     if args.output !="":
         writeResults(args.output,matches)
@@ -180,8 +183,6 @@ def writeResults(file,results):
 
     except IOError:
         print "error writing file"
-
-
 
 if __name__ == '__main__':
     main()

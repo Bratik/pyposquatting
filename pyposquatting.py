@@ -3,9 +3,7 @@
 
 """
     * TODO:
-    -timeout
     -handling of specials chars(implementing regex too)
-
 
 """
 
@@ -20,6 +18,7 @@
 import argparse
 import threading
 from dns import resolver
+import time
 
 # Resolver class, designed to thread dns resolving queries
 class Resolver(threading.Thread):
@@ -57,11 +56,12 @@ def main():
     group.add_argument("--replace-chars", action="store_true", help="check only for char replacement")
     parser.add_argument("-o", "--output", action="store", help="output file")
     parser.add_argument("-t", "--timeout", action="store", help="set the timeout of dns queries in seconds(default=30)")
-    parser.add_argument("--tld-file", action="store", help="Set a custom tld file")
+    parser.add_argument("--tld-file", action="store", default="tld.txt", help="Set a custom tld file(default=tld.txt")
     args = parser.parse_args()
     domain = args.domain.lower()
     domains = []
     # if we only check for tlds
+    print args.tld_file
     if args.tlds:
         domains = checkTld(loadTld(args.tld_file), domain)
     # if we only check for missing chars
@@ -139,6 +139,7 @@ def dnsQuery(domains):
         resolver_thread = Resolver(address, results)
         threads.append(resolver_thread)
         resolver_thread.start()
+        time.sleep(0.02)
 
     for thread in threads:
         thread.join()

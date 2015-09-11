@@ -3,7 +3,7 @@
 
 """
     * TODO:
-    -input validation
+    -refactoring
 
 """
 
@@ -14,7 +14,6 @@
 #                        [--tld-file TLD_FILE] [-d DNS] [-o OUTPUT]
 #                        domain
 
-# [-o OUTPUT] [-t TIMEOUT] [--tld-file TLD_FILE][--throttle THROTTLE]domain
 # Version: 0.2
 # File: pyposquatting.py
 # Author: Benjamin Béguin
@@ -24,7 +23,7 @@ import argparse
 import threading
 from dns import resolver
 import time
-
+import re
 
 # Resolver class, designed to thread dns resolving queries
 class Resolver(threading.Thread):
@@ -40,8 +39,8 @@ class Resolver(threading.Thread):
             myresolver = resolver.Resolver()
             myresolver.lifetime = self.timeout
             myresolver.timeout = self.timeout
-            if self.dns != None:
-                myresolver.nameservers=[self.dns]
+            if self.dns is not None and self.dns != "":
+                myresolver.nameservers=[].append(self.dns)
             result = str(myresolver.query(self.address)[0])
             self.result_dict[self.address] = result
             if result != "127.0.53.53":
@@ -55,6 +54,18 @@ class Resolver(threading.Thread):
         except resolver.NoAnswer:
             pass
 
+# custom exception class to manage IP validation
+class IPError(Exception):
+    def __init__(self,value):
+        self.value=value
+    def __str__(self):
+        return repr(self.value)
+
+class domainError(Exception):
+    def __init__(self,value):
+        self.value=value
+    def __str__(self):
+        return repr(self.value)
 
 # main function
 def main():
@@ -65,16 +76,25 @@ def main():
     group.add_argument("--tlds", action="store_true", help="check only for tlds")
     group.add_argument("--missing-chars", action="store_true", help="check only for missing chars")
     group.add_argument("--replace-chars", action="store_true", help="check only for char replacement")
-    parser.add_argument("-t", "--timeout", action="store", type=float,
+    parser.add_argument("-t", "--timeout", action="store", default=30, type=float,
                         help="set the timeout of dns queries in seconds (default=30)")
     parser.add_argument("--throttle", action="store", default=0.02, type=float,
                         help="Set time between two threads, useful in case of large scans (default=0.02)")
     parser.add_argument("--tld-file", action="store", default="tld.txt", help="Set a custom tld file (default=tld.txt)")
-    parser.add_argument("-d","--dns",action="store", help="Specify the DNS server to use for queries (default is system defined)")
+    parser.add_argument("-d","--dns",action="store", help="Specify the DNS server"
+                                                          " to use for queries (default is system defined)")
     parser.add_argument("-o", "--output", action="store", help="output file")
 
     args = parser.parse_args()
     domain = args.domain.lower()
+
+    # input validation
+    checkDomain(args.domain)
+    if args.dns is not None:
+        checkIp(args.dns)
+
+
+
     # if we only check for tlds
     if args.tlds:
         domains = checkTld(loadTld(args.tld_file), domain)
@@ -90,7 +110,7 @@ def main():
         domains += checkReplaceChar(domain)
     domains = list(set(domains))
     matches = dnsQuery(domains, args.timeout,args.throttle, args.dns)
-    if args.output != "":
+    if args.output is not None:
         writeResults(args.output, matches)
 
 
@@ -183,6 +203,8 @@ def dnsQuery(domains, timeout=30, throttle=0.02, dns=''):
 
 # function loading the tlds
 def loadTld(tldFilename="tld.txt"):
+    if tldFilename is None:
+        tldFilename="tld.txt"
     try:
         tldFile = open(tldFilename, "r")
     except IOError:
@@ -213,6 +235,26 @@ def writeResults(file, results):
     except IOError:
         print "error writing file"
 
+# check if domain is valid (e.g looks like foo.bar)
+def checkDomain(domain):
+    expression = re.compile('^[a-z0-9]+\.[a-z]{2,}$')
+    try:
+        if not expression.match(domain):
+            raise domainError(domain)
+    except domainError:
+        print "Invalid domain, see usage"
+        exit()
 
+
+def checkIp(ip):
+    expression = re.compile('^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$')
+    try:
+        if not expression.match(ip):
+            raise IPError(ip)
+    except IPError:
+        print "Invalid IP : "+ip
+        exit()
+
+        
 if __name__ == '__main__':
     main()

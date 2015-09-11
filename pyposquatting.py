@@ -9,8 +9,8 @@
 
 # A simple typosquatting detection tool
 
-# Usage: usage: pyposquatting.py [-h][--tlds | --missing-chars | --replace-chars | -o OUTPUT] domain
-# Version: 0.1
+# usage: pyposquatting.py [-h] [--tlds | --missing-chars | --replace-chars][-o OUTPUT] [-t TIMEOUT] [--tld-file TLD_FILE][--throttle THROTTLE]domain
+# Version: 0.2
 # File: pyposquatting.py
 # Author: Benjamin Béguin
 # Licence: MIT, see LICENSE FILE
@@ -55,13 +55,13 @@ def main():
     group.add_argument("--missing-chars", action="store_true", help="check only for missing chars")
     group.add_argument("--replace-chars", action="store_true", help="check only for char replacement")
     parser.add_argument("-o", "--output", action="store", help="output file")
-    parser.add_argument("-t", "--timeout", action="store", help="set the timeout of dns queries in seconds(default=30)")
+    parser.add_argument("-t", "--timeout", action="store", type=float, help="set the timeout of dns queries in seconds(default=30)")
     parser.add_argument("--tld-file", action="store", default="tld.txt", help="Set a custom tld file(default=tld.txt")
+    parser.add_argument("--throttle", action="store", default=0.02, type=float, help="Set time between two threads, useful in case of large scans (default=0.02)")
     args = parser.parse_args()
     domain = args.domain.lower()
     domains = []
     # if we only check for tlds
-    print args.tld_file
     if args.tlds:
         domains = checkTld(loadTld(args.tld_file), domain)
     # if we only check for missing chars
@@ -74,7 +74,7 @@ def main():
         domains = checkTld(loadTld(args.tld_file), domain)
         domains += checkMissingChar(domain)
         domains += checkReplaceChar(domain)
-    matches=dnsQuery(domains)
+    matches=dnsQuery(domains,args.throttle)
     if args.output !="":
         writeResults(args.output,matches)
 
@@ -131,7 +131,7 @@ def checkReplaceChar(domain):
 
 
 # handling of dns queries
-def dnsQuery(domains):
+def dnsQuery(domains,throttle=0.02):
     threads = []
     results = {}
     matches={}
@@ -139,7 +139,7 @@ def dnsQuery(domains):
         resolver_thread = Resolver(address, results)
         threads.append(resolver_thread)
         resolver_thread.start()
-        time.sleep(0.02)
+        time.sleep(throttle)
 
     for thread in threads:
         thread.join()

@@ -1,11 +1,8 @@
 #!/usr/bin/python
 # coding: utf-8
 
-"""
-    * TODO:
-    -refactoring
+# TODO refactoring
 
-"""
 
 # A simple typosquatting detection tool
 
@@ -250,7 +247,7 @@ def checkDomain(domain):
         print "Invalid domain, see usage"
         exit()
 
-
+# TODO improve regex
 def checkIp(ip):
     expression = re.compile('^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$')
     try:

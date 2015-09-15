@@ -1,5 +1,6 @@
 # pyposquatting
 A simple typosquatting detection tool
+
 Author: Benjamin Béguin
 
 

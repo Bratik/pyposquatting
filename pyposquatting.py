@@ -25,6 +25,11 @@ from dns import resolver
 import time
 import re
 
+#vars
+
+#excluding the ICANN special IP and some wildcard domains(.sy, .ws, .ph, .vn)
+exclude=['127.0.53.53', '91.144.20.76', '64.70.19.202', '203.119.6.168', '203.119.8.111']
+
 # Resolver class, designed to thread dns resolving queries
 class Resolver(threading.Thread):
     def __init__(self, address, result_dict, dns, timeout=30):
@@ -44,7 +49,7 @@ class Resolver(threading.Thread):
                 myresolver.nameservers.append(self.dns)
             result = str(myresolver.query(self.address)[0])
             self.result_dict[self.address] = result
-            if result != "127.0.53.53":
+            if result not in exclude:
                 print self.address + " : " + result
         except resolver.NXDOMAIN:
             pass
@@ -193,8 +198,7 @@ def dnsQuery(domains, timeout=30, throttle=0.02, dns=''):
         thread.join()
 
     for domain in results:
-        #excluding the ICANN special IP
-        if results[domain] != "127.0.53.53":
+        if results[domain] not in exclude:
             matches[domain] = results[domain]
 
     print "Queries : " + str(len(threads))
